@@ -360,8 +360,9 @@
 	<!-- ═══ RIGHT PANEL: Cart ═══ -->
 	<!-- Desktop: always visible sidebar | Mobile: overlay when toggled -->
 	<div class="w-80 border-l border-gray-200 bg-white flex flex-col flex-shrink-0
-		hidden lg:flex
-		{showMobileCart ? 'fixed inset-y-0 right-0 z-50 flex shadow-2xl' : 'hidden'}">
+		{showMobileCart
+			? 'fixed inset-y-0 right-0 z-50 flex shadow-2xl'
+			: 'hidden lg:flex'}">
 		<!-- Cart Header -->
 		<div class="px-4 py-4 border-b border-gray-200 flex items-center justify-between">
 			<h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">
