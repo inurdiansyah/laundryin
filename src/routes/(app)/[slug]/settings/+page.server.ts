@@ -1,12 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getServerSupabase, getServiceSupabase } from '$lib/supabase/server';
-import {
-	ENABLE_GOWA,
-	GOWA_BASE_URL,
-	GOWA_USERNAME,
-	GOWA_PASSWORD
-} from '$env/static/private';
+import { getGoWAConfig } from '$lib/whatsapp/gowa-config';
 import { GoWAClient } from '$lib/whatsapp/gowa-client';
 
 const USER_LIMITS: Record<string, number> = { free: 2, starter: 5, pro: 999 };
@@ -14,12 +9,13 @@ const USER_LIMITS: Record<string, number> = { free: 2, starter: 5, pro: 999 };
 // ── Shared GoWA client (env-level) ──
 let _gowaClient: GoWAClient | null = null;
 function getGoWAClient(): GoWAClient | null {
-	if (!ENABLE_GOWA) return null;
+	const config = getGoWAConfig();
+	if (!config.enabled) return null;
 	if (!_gowaClient) {
 		_gowaClient = new GoWAClient({
-			base_url: GOWA_BASE_URL,
-			username: GOWA_USERNAME,
-			password: GOWA_PASSWORD
+			base_url: config.base_url,
+			username: config.username,
+			password: config.password
 		});
 	}
 	return _gowaClient;
@@ -52,7 +48,7 @@ export const load: PageServerLoad = async ({ locals, fetch, cookies }) => {
 	// ── GoWA status (env-level, optionally fetched) ──
 	let gowaStatus: { is_connected: boolean; is_logged_in: boolean; jid: string } | null = null;
 	let gowaQr: string | null = null;
-	if (ENABLE_GOWA) {
+	if (getGoWAConfig().enabled) {
 		try {
 			const client = getGoWAClient();
 			if (client) {
@@ -285,7 +281,7 @@ export const actions: Actions = {
 
 		// ── GoWA status checker (POST from settings page) ──
 		gowa_status: async () => {
-			if (!ENABLE_GOWA) return fail(503, { error: 'GoWA disabled' });
+			if (!getGoWAConfig().enabled) return fail(503, { error: 'GoWA disabled' });
 			const client = getGoWAClient();
 			if (!client) return fail(503, { error: 'GoWA not configured' });
 			try {
@@ -301,7 +297,7 @@ export const actions: Actions = {
 
 		// ── GoWA QR code (POST from settings page) ──
 		gowa_qr: async () => {
-			if (!ENABLE_GOWA) return fail(503, { error: 'GoWA disabled' });
+			if (!getGoWAConfig().enabled) return fail(503, { error: 'GoWA disabled' });
 			const client = getGoWAClient();
 			if (!client) return fail(503, { error: 'GoWA not configured' });
 			try {

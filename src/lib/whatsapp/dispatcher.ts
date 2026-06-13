@@ -5,24 +5,20 @@
  * GoWA credentials are set at ENVIRONMENT level (shared across all tenants).
  * Gate: ENABLE_GOWA — when false, returns immediately without any API/DB calls.
  */
-import {
-	ENABLE_GOWA,
-	GOWA_BASE_URL,
-	GOWA_USERNAME,
-	GOWA_PASSWORD
-} from '$env/static/private';
+import { getGoWAConfig, type GoWAConfig } from './gowa-config';
 import { GoWAClient } from './gowa-client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // ── Shared GoWA client (lazy, env-level, one per process) ──
 let _client: GoWAClient | null = null;
 function getClient(): GoWAClient | null {
-	if (!ENABLE_GOWA) return null;
+	const config = getGoWAConfig();
+	if (!config.enabled) return null;
 	if (!_client) {
 		_client = new GoWAClient({
-			base_url: GOWA_BASE_URL,
-			username: GOWA_USERNAME,
-			password: GOWA_PASSWORD
+			base_url: config.base_url,
+			username: config.username,
+			password: config.password
 		});
 	}
 	return _client;
@@ -53,7 +49,7 @@ export async function sendNotification(
 	params: Record<string, string>
 ): Promise<void> {
 	// Gate: skip entirely when WhatsApp is disabled
-	if (!ENABLE_GOWA) return;
+	if (!getGoWAConfig().enabled) return;
 
 	const templateFn = TEMPLATES[template];
 	if (!templateFn) return;
