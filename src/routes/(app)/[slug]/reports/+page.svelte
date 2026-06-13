@@ -28,11 +28,22 @@
 		{ id: 'custom', label: 'Custom' },
 	];
 
-	let activePreset = $state(period === 'yesterday' ? 'yesterday' : period === 'last_month' ? 'last_month' : dateFrom ? 'custom' : period);
-	let showCustom = $state(activePreset === 'custom');
-	let customFrom = $state(dateFrom || '');
-	let customTo = $state(dateTo || '');
+	let activePreset = $state('');
+	let showCustom = $state(false);
+	let customFrom = $state('');
+	let customTo = $state('');
 	let pdfLoading = $state(false);
+
+	// Sync reactive props into local state (avoids state_referenced_locally warning)
+	$effect(() => {
+		const p = period;
+		const df = dateFrom;
+		const dt = dateTo;
+		activePreset = p === 'yesterday' ? 'yesterday' : p === 'last_month' ? 'last_month' : df ? 'custom' : p;
+		showCustom = activePreset === 'custom';
+		customFrom = df || '';
+		customTo = dt || '';
+	});
 
 	// ── Navigation ──
 	function navigate(preset: string, offs = 0, df = '', dt = '') {
@@ -170,12 +181,12 @@
 		{#if showCustom}
 			<div class="flex flex-wrap items-end gap-3 bg-white rounded-xl border border-gray-200 p-4">
 				<div class="flex flex-col gap-1">
-					<label class="text-xs text-gray-400">Dari</label>
-					<input type="date" bind:value={customFrom} class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500" />
+					<label for="custom-from" class="text-xs text-gray-400">Dari</label>
+					<input id="custom-from" type="date" bind:value={customFrom} class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500" />
 				</div>
 				<div class="flex flex-col gap-1">
-					<label class="text-xs text-gray-400">Sampai</label>
-					<input type="date" bind:value={customTo} class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500" />
+					<label for="custom-to" class="text-xs text-gray-400">Sampai</label>
+					<input id="custom-to" type="date" bind:value={customTo} class="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500" />
 				</div>
 				<button onclick={applyCustom} class="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition">Terapkan</button>
 				<div class="flex items-center gap-1.5 ml-auto">

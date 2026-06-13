@@ -162,16 +162,16 @@
 				<h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Informasi Toko</h2>
 				<form method="POST" action="?/update_profile" use:enhance={() => { submitError = ''; return async ({ result }) => { handleProfileResult(result); await applyAction(result); }; }} class="space-y-4">
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Nama Toko</label>
-						<input type="text" name="nama_toko" value={tenantData?.nama || ''} required class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+						<label for="nama_toko" class="block text-sm font-medium text-gray-600 mb-1.5">Nama Toko</label>
+						<input type="text" id="nama_toko" name="nama_toko" value={tenantData?.nama || ''} required class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Alamat</label>
-						<textarea name="alamat" rows="2" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500 resize-none">{tenantData?.alamat || ''}</textarea>
+						<label for="alamat" class="block text-sm font-medium text-gray-600 mb-1.5">Alamat</label>
+						<textarea id="alamat" name="alamat" rows="2" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500 resize-none">{tenantData?.alamat || ''}</textarea>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Nomor HP</label>
-						<input type="tel" name="nomor_hp" value={tenantData?.nomor_hp || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+						<label for="nomor_hp" class="block text-sm font-medium text-gray-600 mb-1.5">Nomor HP</label>
+						<input type="tel" id="nomor_hp" name="nomor_hp" value={tenantData?.nomor_hp || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 					</div>
 					<div class="text-xs text-gray-400 space-y-1">
 						<p>Slug: <code class="bg-gray-100 px-1.5 py-0.5 rounded">{tenantData?.slug}</code></p>
@@ -290,17 +290,17 @@
 					<input type="hidden" name="id" value={editingLayanan.id} />
 				{/if}
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">Nama <span class="text-red-400">*</span></label>
-					<input type="text" name="nama" required value={editingLayanan?.nama || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+					<label for="layanan_nama" class="block text-sm font-medium text-gray-600 mb-1.5">Nama <span class="text-red-400">*</span></label>
+					<input type="text" id="layanan_nama" name="nama" required value={editingLayanan?.nama || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Harga (Rp)</label>
-						<input type="number" name="harga" required min="1" value={editingLayanan?.harga || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+						<label for="layanan_harga" class="block text-sm font-medium text-gray-600 mb-1.5">Harga (Rp)</label>
+						<input type="number" id="layanan_harga" name="harga" required min="1" value={editingLayanan?.harga || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Satuan</label>
-						<select name="satuan" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
+						<label for="layanan_satuan" class="block text-sm font-medium text-gray-600 mb-1.5">Satuan</label>
+						<select id="layanan_satuan" name="satuan" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
 							{#each ['kg', 'piece', 'set'] as s}
 								<option value={s} selected={editingLayanan?.satuan === s}>{s}</option>
 							{/each}
@@ -308,8 +308,8 @@
 					</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">Kategori</label>
-					<select name="kategori" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
+					<label for="layanan_kategori" class="block text-sm font-medium text-gray-600 mb-1.5">Kategori</label>
+					<select id="layanan_kategori" name="kategori" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
 						{#each ['Cuci', 'Setrika', 'Express', 'Lainnya'] as k}
 							<option value={k} selected={editingLayanan?.kategori === k}>{k}</option>
 						{/each}
@@ -318,7 +318,7 @@
 
 				<!-- Workflow Editor -->
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-2">Workflow Proses</label>
+					<label for="addStep" class="block text-sm font-medium text-gray-600 mb-2">Workflow Proses</label>
 					<p class="text-xs text-gray-400 mb-2">Centang dan urutkan langkah yang relevan. Delivery (jemput/antar) otomatis ditambah saat order.</p>
 					<div class="space-y-1.5">
 						{#each editingWorkflow as step, idx}
@@ -376,21 +376,21 @@
 			</div>
 			<form method="POST" action="?/add_user" use:enhance={() => { submitError = ''; return async ({ result }) => { handleUserResult(result); await applyAction(result); }; }} class="space-y-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">Email <span class="text-red-400">*</span></label>
-					<input type="email" name="email" bind:value={newEmail} required
+					<label for="user_email" class="block text-sm font-medium text-gray-600 mb-1.5">Email <span class="text-red-400">*</span></label>
+					<input type="email" id="user_email" name="email" bind:value={newEmail} required
 						placeholder="pekerja@email.com"
 						class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">Nama <span class="text-red-400">*</span></label>
-					<input type="text" name="nama" bind:value={newNama} required
+					<label for="user_nama" class="block text-sm font-medium text-gray-600 mb-1.5">Nama <span class="text-red-400">*</span></label>
+					<input type="text" id="user_nama" name="nama" bind:value={newNama} required
 						placeholder="Nama pekerja"
 						class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">Password <span class="text-red-400">*</span></label>
+					<label for="user_password" class="block text-sm font-medium text-gray-600 mb-1.5">Password <span class="text-red-400">*</span></label>
 					<div class="relative">
-						<input type={showPassword ? 'text' : 'password'} name="password" bind:value={newPassword} required minlength="6"
+						<input type={showPassword ? 'text' : 'password'} id="user_password" name="password" bind:value={newPassword} required minlength="6"
 							placeholder="Minimal 6 karakter"
 							class="w-full rounded-xl border border-gray-300 pl-4 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 						<button type="button" onclick={() => showPassword = !showPassword}
@@ -400,7 +400,7 @@
 					</div>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">Role</label>
+					<label for="user_role" class="block text-sm font-medium text-gray-600 mb-1.5">Role</label>
 					<div class="flex gap-2">
 						<button type="button" onclick={() => newRole = 'kasir'}
 							class="flex-1 rounded-lg py-2.5 text-sm font-medium transition {newRole === 'kasir' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-gray-100 text-gray-500 border border-transparent hover:bg-gray-200'}">
@@ -411,7 +411,7 @@
 							🚚 Driver
 						</button>
 					</div>
-					<input type="hidden" name="role" value={newRole} />
+					<input type="hidden" id="user_role" name="role" value={newRole} />
 				</div>
 				<div class="flex gap-3 pt-1">
 					<button type="submit" class="flex-1 rounded-xl bg-green-600 py-3 text-sm font-bold text-white shadow-md shadow-green-200 hover:bg-green-700 transition">Tambah Pengguna</button>

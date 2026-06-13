@@ -250,8 +250,8 @@
 								</div>
 								<div class="flex gap-2 items-end">
 									<div class="flex-1">
-										<label class="text-[10px] text-gray-400 block mb-0.5">Stok Aktual</label>
-										<input type="number" step="0.01" min="0" placeholder="0"
+										<label for="stok_aktual_field" class="text-[10px] text-gray-400 block mb-0.5">Stok Aktual</label>
+										<input id="stok_aktual_field" type="number" step="0.01" min="0" placeholder="0"
 											bind:value={opnameEntries[it.id].actual}
 											class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-300" />
 									</div>
@@ -424,21 +424,21 @@
 					<input type="hidden" name="id" value={editingItem.id} />
 				{/if}
 				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">Nama <span class="text-red-400">*</span></label>
-					<input type="text" name="nama" required value={editingItem?.nama || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+					<label for="nama_field" class="block text-sm font-medium text-gray-600 mb-1.5">Nama <span class="text-red-400">*</span></label>
+					<input id="nama_field" type="text" name="nama" required value={editingItem?.nama || ''} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Satuan</label>
-						<select name="satuan" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
+						<label for="satuan_field" class="block text-sm font-medium text-gray-600 mb-1.5">Satuan</label>
+						<select id="satuan_field" name="satuan" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
 							{#each ['pcs', 'kg', 'liter', 'botol', 'pack', 'roll', 'set'] as s}
 								<option value={s} selected={editingItem?.satuan === s}>{s}</option>
 							{/each}
 						</select>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Kategori</label>
-						<select name="kategori" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
+						<label for="kategori_field" class="block text-sm font-medium text-gray-600 mb-1.5">Kategori</label>
+						<select id="kategori_field" name="kategori" class="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500">
 							{#each ['Deterjen', 'Pewangi', 'Plastik', 'Alat', 'Lainnya'] as k}
 								<option value={k} selected={editingItem?.kategori === k}>{k}</option>
 							{/each}
@@ -447,12 +447,12 @@
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Stok Minimum</label>
-						<input type="number" name="stok_minimum" step="0.01" min="0" value={editingItem?.stok_minimum || 0} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+						<label for="stok_minimum_field" class="block text-sm font-medium text-gray-600 mb-1.5">Stok Minimum</label>
+						<input id="stok_minimum_field" type="number" name="stok_minimum" step="0.01" min="0" value={editingItem?.stok_minimum || 0} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1.5">Harga Beli (Rp)</label>
-						<input type="number" name="harga_beli" min="0" value={editingItem?.harga_beli || 0} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+						<label for="harga_beli_field" class="block text-sm font-medium text-gray-600 mb-1.5">Harga Beli (Rp)</label>
+						<input id="harga_beli_field" type="number" name="harga_beli" min="0" value={editingItem?.harga_beli || 0} class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 					</div>
 				</div>
 				<div class="flex gap-3 pt-1">

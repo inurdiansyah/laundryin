@@ -234,8 +234,8 @@
 
 	<!-- Add Driver Modal -->
 	{#if showAddDriver}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onclick={() => showAddDriver = false} role="dialog">
-			<div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onclick={(e: Event) => e.stopPropagation()}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onclick={() => showAddDriver = false} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') showAddDriver = false; }} role="dialog" tabindex="-1">
+			<div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4" onclick={(e: Event) => e.stopPropagation()} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') showAddDriver = false; }} role="document">
 				<h2 class="text-lg font-bold text-gray-800 mb-4">👤 Tambah Driver Baru</h2>
 				<form method="POST" action="?/add_driver" use:enhance={() => {
 					return async ({ result }: any) => {
@@ -244,13 +244,13 @@
 					};
 				}} class="space-y-3">
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1">Nama Driver</label>
-						<input type="text" name="nama" bind:value={newDriverNama} required placeholder="Nama lengkap"
+						<label for="driver-nama" class="block text-sm font-medium text-gray-600 mb-1">Nama Driver</label>
+						<input type="text" name="nama" id="driver-nama" bind:value={newDriverNama} required placeholder="Nama lengkap"
 							class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-gray-600 mb-1">Nomor HP</label>
-						<input type="text" name="nomor_hp" bind:value={newDriverHp} required placeholder="0812-xxxx-xxxx"
+						<label for="driver-hp" class="block text-sm font-medium text-gray-600 mb-1">Nomor HP</label>
+						<input type="text" name="nomor_hp" id="driver-hp" bind:value={newDriverHp} required placeholder="0812-xxxx-xxxx"
 							class="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
 					</div>
 					<div class="flex gap-2 pt-2">
@@ -384,7 +384,7 @@
 
 						<!-- Expanded Detail -->
 						{#if expandedId === order.id}
-							<div class="px-5 pb-5 pt-2 bg-blue-50/50 border-t-2 border-blue-200 border-dashed space-y-4" onclick={(e: Event) => e.stopPropagation()}>
+							<div class="px-5 pb-5 pt-2 bg-blue-50/50 border-t-2 border-blue-200 border-dashed space-y-4" onclick={(e: Event) => e.stopPropagation()} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') expandedId = null; }} role="region" aria-label="Detail pesanan">
 
 								<!-- ═══ DELIVERY CARDS ═══ -->
 								{#if delivery && (delivery.jemput || delivery.antar)}

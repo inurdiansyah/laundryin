@@ -10,8 +10,10 @@
 	let formState = $derived($page.form);
 
 	// ── Search ──
-	let initialSearch = $derived(data.search ?? '');
-	let searchQuery = $state(initialSearch);
+	let searchQuery = $state('');
+	$effect(() => {
+		searchQuery = data.search ?? '';
+	});
 
 	let filteredCustomers = $derived(
 		searchQuery.trim()

@@ -619,10 +619,10 @@
 					/>
 				</div>
 
-				<div>
-					<label class="block text-sm font-medium text-gray-600 mb-1.5">
+				<fieldset>
+					<legend class="block text-sm font-medium text-gray-600 mb-1.5">
 						Tipe <span class="text-red-400">*</span>
-					</label>
+					</legend>
 					<div class="flex gap-3">
 						<label
 							class="flex-1 rounded-xl border px-4 py-3 text-sm font-medium cursor-pointer transition {pointsType === 'masuk'
@@ -657,7 +657,7 @@
 							</span>
 						</label>
 					</div>
-				</div>
+				</fieldset>
 
 				<div>
 					<label
