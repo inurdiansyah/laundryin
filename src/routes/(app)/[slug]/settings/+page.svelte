@@ -14,7 +14,7 @@
 	let userLimit = $derived(data.userLimit);
 
 	// ── Tab state ──
-	let activeTab = $state<'profil' | 'layanan' | 'users'>('profil');
+	let activeTab = $state<'profil' | 'layanan' | 'users' | 'whatsapp'>('profil');
 
 	// ── Layanan modal ──
 	let showLayananModal = $state(false);
@@ -121,6 +121,88 @@
 			submitError = ((result.data as Record<string, string>)?.error) || 'Gagal';
 		}
 	}
+
+	// ── WhatsApp state ──
+	let gowaConfig = $derived(data.gowaConfig);
+	let gowaBaseUrl = $state('');
+	let gowaUsername = $state('');
+	let gowaPassword = $state('');
+
+	// Initialize from config when data loads/changes
+	$effect(() => {
+		if (gowaConfig) {
+			if (!gowaBaseUrl) gowaBaseUrl = gowaConfig.base_url || '';
+			if (!gowaUsername) gowaUsername = gowaConfig.username || '';
+			if (!gowaPassword) gowaPassword = gowaConfig.password || '';
+		}
+	});
+	let gowaStatus = $state<'idle' | 'loading' | 'connected' | 'disconnected' | 'error'>('idle');
+	let gowaStatusText = $state('');
+	let gowaQr = $state('');
+	let showQr = $state(false);
+
+	async function testGoWA() {
+		if (!gowaBaseUrl || !gowaUsername || !gowaPassword) {
+			submitError = 'Isi Base URL, Username, dan Password terlebih dahulu';
+			return;
+		}
+		gowaStatus = 'loading';
+		gowaStatusText = 'Menghubungi GoWA...';
+		try {
+			const encoded = btoa(`${gowaUsername}:${gowaPassword}`);
+			const res = await fetch(`${gowaBaseUrl.replace(/\/+$/, '')}/app/status`, {
+				headers: { Authorization: `Basic ${encoded}`, 'Content-Type': 'application/json' }
+			});
+			const json = await res.json();
+			const result = json?.results ?? json;
+			if (result?.is_connected) {
+				gowaStatus = 'connected';
+				gowaStatusText = `✅ Terhubung — JID: ${result.jid || 'unknown'}`;
+			} else {
+				gowaStatus = 'disconnected';
+				gowaStatusText = '⚠️ GoWA tidak terhubung ke WhatsApp. Scan QR untuk login.';
+			}
+		} catch (err: any) {
+			gowaStatus = 'error';
+			gowaStatusText = '❌ Gagal: ' + (err?.message || 'Unknown');
+		}
+	}
+
+	async function getGoWAQR() {
+		if (!gowaBaseUrl || !gowaUsername || !gowaPassword) {
+			submitError = 'Isi Base URL, Username, dan Password terlebih dahulu';
+			return;
+		}
+		gowaStatus = 'loading';
+		try {
+			const encoded = btoa(`${gowaUsername}:${gowaPassword}`);
+			const res = await fetch(`${gowaBaseUrl.replace(/\/+$/, '')}/app/login`, {
+				headers: { Authorization: `Basic ${encoded}` }
+			});
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const buffer = await res.arrayBuffer();
+			const base64 = btoa(
+				Array.from(new Uint8Array(buffer)).map((b) => String.fromCharCode(b)).join('')
+			);
+			const ct = res.headers.get('content-type') || 'image/png';
+			gowaQr = `data:${ct};base64,${base64}`;
+			showQr = true;
+			gowaStatus = 'idle';
+		} catch (err: any) {
+			gowaStatus = 'error';
+			gowaStatusText = '❌ Gagal ambil QR: ' + (err?.message || 'Unknown');
+		}
+	}
+
+	function handleGowaResult(result: { type: string; data?: Record<string, unknown> }) {
+		if (result.type === 'success') {
+			const d = result.data as Record<string, unknown>;
+			showSuccess((d?.message as string) || 'Berhasil');
+			invalidateAll();
+		} else if (result.type === 'failure') {
+			submitError = ((result.data as Record<string, string>)?.error) || 'Gagal';
+		}
+	}
 </script>
 
 <svelte:head><title>Pengaturan — LaundryIn</title></svelte:head>
@@ -147,7 +229,8 @@
 			{#each [
 				{ id: 'profil', label: '🏪 Profil Toko' },
 				{ id: 'layanan', label: '🧺 Layanan' },
-				{ id: 'users', label: '👤 Pengguna' }
+				{ id: 'users', label: '👤 Pengguna' },
+				{ id: 'whatsapp', label: '💬 WhatsApp' }
 			] as tab}
 				<button onclick={() => activeTab = tab.id}
 					class="flex-1 rounded-lg py-2 text-sm font-medium transition {activeTab === tab.id ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">
@@ -271,6 +354,56 @@
 						{/each}
 					</div>
 				{/if}
+			</div>
+		{/if}
+
+		<!-- ═══ WHATSAPP ═══ -->
+		{#if activeTab === 'whatsapp'}
+			<div class="rounded-xl border border-gray-200 bg-white p-5">
+				<h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Integrasi WhatsApp (GoWA)</h2>
+
+				<!-- Status -->
+				{#if gowaStatus !== 'idle'}
+					<div class="rounded-xl p-4 mb-4 {gowaStatus === 'connected' ? 'bg-green-50 border border-green-200' : gowaStatus === 'disconnected' ? 'bg-amber-50 border border-amber-200' : gowaStatus === 'error' ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'}">
+						<p class="text-sm font-medium {gowaStatus === 'connected' ? 'text-green-700' : gowaStatus === 'disconnected' ? 'text-amber-700' : gowaStatus === 'error' ? 'text-red-700' : 'text-blue-700'}">{gowaStatusText}</p>
+					</div>
+				{/if}
+
+				<!-- QR Code -->
+				{#if showQr && gowaQr}
+					<div class="mb-4 p-4 bg-gray-50 rounded-xl text-center">
+						<p class="text-sm font-medium text-gray-600 mb-3">Scan QR code dengan WhatsApp:</p>
+						<img src={gowaQr} alt="GoWA QR Code" class="mx-auto max-w-[240px] rounded-lg border border-gray-200" />
+						<button onclick={() => { showQr = false; gowaQr = ''; }} class="mt-3 text-xs text-red-500 hover:text-red-700">Tutup QR</button>
+					</div>
+				{/if}
+
+				<!-- Config Form -->
+				<form method="POST" action="?/save_gowa" use:enhance={() => { submitError = ''; return async ({ result }) => { handleGowaResult(result); await applyAction(result); }; }} class="space-y-4">
+					<div>
+						<label for="gowa_base_url" class="block text-sm font-medium text-gray-600 mb-1.5">GoWA Base URL <span class="text-red-400">*</span></label>
+						<input type="url" id="gowa_base_url" name="base_url" bind:value={gowaBaseUrl} required placeholder="https://gowa.example.com" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+					</div>
+					<div>
+						<label for="gowa_username" class="block text-sm font-medium text-gray-600 mb-1.5">Username <span class="text-red-400">*</span></label>
+						<input type="text" id="gowa_username" name="username" bind:value={gowaUsername} required placeholder="kemal" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+					</div>
+					<div>
+						<label for="gowa_password" class="block text-sm font-medium text-gray-600 mb-1.5">Password <span class="text-red-400">*</span></label>
+						<input type="password" id="gowa_password" name="password" bind:value={gowaPassword} required placeholder="••••••••" class="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500" />
+					</div>
+
+					<div class="flex gap-3">
+						<button type="submit" class="flex-1 rounded-xl bg-green-600 py-3 text-sm font-bold text-white shadow-md shadow-green-200 hover:bg-green-700 transition">💾 Simpan Konfigurasi</button>
+					</div>
+				</form>
+
+				<div class="flex gap-3 mt-4 pt-4 border-t border-gray-100">
+					<button onclick={testGoWA} disabled={gowaStatus === 'loading'} class="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-200 hover:bg-blue-700 transition disabled:opacity-50">🔌 Test Koneksi</button>
+					<button onclick={getGoWAQR} disabled={gowaStatus === 'loading'} class="flex-1 rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white shadow-md shadow-amber-200 hover:bg-amber-700 transition disabled:opacity-50">📱 Dapatkan QR</button>
+				</div>
+
+				<p class="text-xs text-gray-400 mt-4">GoWA adalah gateway WhatsApp API. Pastikan GoWA server berjalan dan terhubung ke WhatsApp. Simpan konfigurasi terlebih dahulu sebelum test koneksi.</p>
 			</div>
 		{/if}
 	</div>

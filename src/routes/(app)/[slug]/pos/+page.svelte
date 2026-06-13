@@ -2,7 +2,9 @@
 	import { enhance, applyAction } from '$app/forms';
 	import { page } from '$app/stores';
 	import type { PageData } from './$types';
-	import { formatRupiah } from '$lib/utils/format';
+	import { formatRupiah, formatTanggal } from '$lib/utils/format';
+	import { generateInvoicePDF } from '$lib/utils/invoice';
+	import InvoiceTemplate from '$lib/components/InvoiceTemplate.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -58,6 +60,24 @@
 	function setQty(id: string, val: number) {
 		qtyMap = { ...qtyMap, [id]: Math.max(0, val) };
 	}
+	function updateQty(layananId: string, delta: number, absolute?: number) {
+		const current = qtyMap[layananId] || 1;
+		let newQty: number;
+		if (absolute !== undefined) {
+			newQty = Math.max(0.1, absolute);
+		} else {
+			const satuan = layanan.find(l => l.id === layananId)?.satuan;
+			const step = satuan === 'kg' ? 0.5 : 1;
+			newQty = Math.max(0.1, current + step * Math.sign(delta));
+		}
+		if (newQty <= 0) {
+			const next = { ...qtyMap };
+			delete next[layananId];
+			qtyMap = next;
+			return;
+		}
+		qtyMap = { ...qtyMap, [layananId]: Math.round(newQty * 10) / 10 };
+	}
 	function removeItem(id: string) {
 		const next = { ...qtyMap };
 		delete next[id];
@@ -94,6 +114,22 @@
 	let successData: { nomor_order: string; total: number } | null = $state(null);
 	let submitError = $state('');
 
+	// ── Invoice ──
+	let showInvoice = $state(false);
+	let invoiceLoading = $state(false);
+	let receiptSnapshot = $state<{
+		nomor_order: string;
+		tanggal: string;
+		items: { nama: string; qty: number; satuan: string; harga: number; subtotal: number }[];
+		subtotal: number;
+		diskon: number;
+		total: number;
+		metode_bayar: string;
+		status_bayar: string;
+		customer_nama: string;
+		customer_hp: string;
+	} | null>(null);
+
 	let canSubmit = $derived(
 		selectedItems.length > 0
 		&& (selectedCustomer || (newNama.trim() && newHp.trim()))
@@ -122,9 +158,42 @@
 		if (closeSuccessTimer) clearTimeout(closeSuccessTimer);
 	}
 
-	function printReceipt() {
+	function captureReceipt() {
 		if (!successData) return;
-		window.print();
+		receiptSnapshot = {
+			nomor_order: successData.nomor_order,
+			tanggal: new Date().toISOString(),
+			items: selectedItems.map(item => ({
+				nama: item.nama,
+				qty: item.qty,
+				satuan: item.satuan,
+				harga: item.harga,
+				subtotal: item.harga * item.qty
+			})),
+			subtotal,
+			diskon,
+			total,
+			metode_bayar: metodeBayar,
+			status_bayar: waktuBayar === 'awal' && nominalBayar >= total ? 'lunas' : 'belum_lunas',
+			customer_nama: selectedCustomer?.nama ?? newNama,
+			customer_hp: selectedCustomer?.nomor_hp ?? newHp
+		};
+		showInvoice = true;
+	}
+
+	async function printInvoice() {
+		if (!successData) return;
+		captureReceipt();
+		// Wait for DOM render
+		await new Promise(r => setTimeout(r, 200));
+		invoiceLoading = true;
+		try {
+			await generateInvoicePDF('invoice-print', successData.nomor_order);
+		} catch (e) {
+			console.error('PDF generation failed:', e);
+		} finally {
+			invoiceLoading = false;
+		}
 	}
 
 	// ── Keyboard Shortcuts ──
@@ -175,9 +244,9 @@
 						class="rounded-lg bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200 transition">
 						Pesanan Baru
 					</button>
-					<button onclick={printReceipt}
+					<button onclick={() => showInvoice = true}
 						class="rounded-lg bg-green-100 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-200 transition">
-						🖨️ Cetak Struk
+						🖨️ Cetak Invoice
 					</button>
 				</div>
 			</div>
@@ -391,17 +460,36 @@
 							<p class="text-xs text-gray-400">{formatRupiah(item.harga)}/{item.satuan}</p>
 						</div>
 						<div class="flex items-center gap-2 flex-shrink-0 ml-2">
-							<button type="button"
-								onclick={() => setQty(item.id, item.qty - 1)}
-								class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
-								&minus;
-							</button>
-							<span class="w-6 text-center text-sm font-semibold text-gray-700">{item.qty}</span>
-							<button type="button"
-								onclick={() => setQty(item.id, item.qty + 1)}
-								class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
-								+
-							</button>
+							{#if item.satuan === 'kg'}
+								<div class="flex items-center gap-1">
+									<button type="button"
+										onclick={() => updateQty(item.id, -0.5)}
+										class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
+										&minus;
+									</button>
+									<input type="number" step="0.1" min="0.5" max="999"
+										value={qtyMap[item.id] || 1}
+										oninput={(e) => updateQty(item.id, 0, parseFloat((e.target as HTMLInputElement).value))}
+										class="w-16 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
+									<button type="button"
+										onclick={() => updateQty(item.id, 0.5)}
+										class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
+										+
+									</button>
+								</div>
+							{:else}
+								<button type="button"
+									onclick={() => setQty(item.id, item.qty - 1)}
+									class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
+									&minus;
+								</button>
+								<span class="w-6 text-center text-sm font-semibold text-gray-700">{item.qty}</span>
+								<button type="button"
+									onclick={() => setQty(item.id, item.qty + 1)}
+									class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
+									+
+								</button>
+							{/if}
 							<button type="button" onclick={() => removeItem(item.id)}
 								class="h-7 w-7 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition text-xs">
 								✕
@@ -502,7 +590,26 @@
 						if (result.type === 'success') {
 							const d = result.data as Record<string, unknown>;
 							if (d?.success) {
-															successData = { nomor_order: d.nomor_order as string, order_id: d.order_id as string, total: total };
+								// Capture receipt before resetAll clears cart
+								receiptSnapshot = {
+									nomor_order: d.nomor_order as string,
+									tanggal: new Date().toISOString(),
+									items: selectedItems.map(item => ({
+										nama: item.nama,
+										qty: item.qty,
+										satuan: item.satuan,
+										harga: item.harga,
+										subtotal: item.harga * item.qty
+									})),
+									subtotal,
+									diskon,
+									total,
+									metode_bayar: metodeBayar,
+									status_bayar: waktuBayar === 'awal' && nominalBayar >= total ? 'lunas' : 'belum_lunas',
+									customer_nama: selectedCustomer?.nama ?? newNama,
+									customer_hp: selectedCustomer?.nomor_hp ?? newHp
+								};
+								successData = { nomor_order: d.nomor_order as string, order_id: d.order_id as string, total: total };
 								showSuccess = true;
 								resetAll();
 								// Auto-scroll to toast — find scrollable parent
@@ -565,6 +672,75 @@
 		{/if}
 	</button>
 </div>
+
+<!-- ═══ Invoice Modal ═══ -->
+{#if showInvoice && receiptSnapshot}
+	<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+		onclick={() => showInvoice = false}
+		onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') showInvoice = false; }}
+		role="dialog" tabindex="-1">
+		<div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto"
+			onclick={(e: Event) => e.stopPropagation()}
+			onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') showInvoice = false; }}
+			role="document">
+			<div class="p-4 border-b border-gray-200 flex items-center justify-between">
+				<h2 class="text-sm font-bold text-gray-800">📄 Invoice</h2>
+				<button onclick={() => showInvoice = false} class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+			</div>
+			<div class="p-4 flex justify-center">
+				<InvoiceTemplate
+					tenant={{ nama: $page.data.tenant?.nama_toko ?? 'LaundryIn', alamat: '', phone: '' }}
+					order={{
+						nomor_order: receiptSnapshot.nomor_order,
+						tanggal: receiptSnapshot.tanggal,
+						subtotal: receiptSnapshot.subtotal,
+						diskon: receiptSnapshot.diskon,
+						total: receiptSnapshot.total,
+						status_bayar: receiptSnapshot.status_bayar,
+						metode_bayar: receiptSnapshot.metode_bayar
+					}}
+					customer={{ nama: receiptSnapshot.customer_nama, phone: receiptSnapshot.customer_hp }}
+					items={receiptSnapshot.items}
+				/>
+			</div>
+			<div class="p-4 border-t border-gray-200 flex gap-2">
+				<button onclick={() => printInvoice()}
+					disabled={invoiceLoading}
+					class="flex-1 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50">
+					{#if invoiceLoading}
+						Membuat PDF...
+					{:else}
+						📥 Download PDF
+					{/if}
+				</button>
+				<button onclick={() => showInvoice = false}
+					class="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-200 transition">
+					Tutup
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Hidden element for PDF capture -->
+{#if receiptSnapshot}
+	<div id="invoice-print" class="fixed left-[-9999px] top-0 z-[-1]">
+		<InvoiceTemplate
+			tenant={{ nama: $page.data.tenant?.nama_toko ?? 'LaundryIn', alamat: '', phone: '' }}
+			order={{
+				nomor_order: receiptSnapshot.nomor_order,
+				tanggal: receiptSnapshot.tanggal,
+				subtotal: receiptSnapshot.subtotal,
+				diskon: receiptSnapshot.diskon,
+				total: receiptSnapshot.total,
+				status_bayar: receiptSnapshot.status_bayar,
+				metode_bayar: receiptSnapshot.metode_bayar
+			}}
+			customer={{ nama: receiptSnapshot.customer_nama, phone: receiptSnapshot.customer_hp }}
+			items={receiptSnapshot.items}
+		/>
+	</div>
+{/if}
 
 <style>
 	@keyframes slideDown {

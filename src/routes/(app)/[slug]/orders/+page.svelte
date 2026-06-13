@@ -3,7 +3,9 @@
 	import { page } from '$app/stores';
 	import { goto, invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
-	import { formatRupiah } from '$lib/utils/format';
+	import { formatRupiah, formatTanggal } from '$lib/utils/format';
+	import { generateInvoicePDF } from '$lib/utils/invoice';
+	import InvoiceTemplate from '$lib/components/InvoiceTemplate.svelte';
 	import { onMount } from 'svelte';
 
 	let { data }: { data: PageData } = $props();
@@ -129,6 +131,46 @@
 	let editingField = $state<{ deliveryId: string; field: string } | null>(null);
 	let editValue = $state('');
 	let showDateFilter = $state(false);
+
+	// ── Invoice ──
+	let showInvoice = $state(false);
+	let invoiceOrderData = $state<any>(null);
+	let invoiceLoading = $state(false);
+
+	function openInvoice(order: any) {
+		invoiceOrderData = {
+			nomor_order: order.nomor_order,
+			tanggal: order.created_at,
+			subtotal: order.subtotal ?? 0,
+			diskon: order.diskon ?? 0,
+			total: order.total ?? 0,
+			status_bayar: order.status_bayar ?? 'belum_lunas',
+			metode_bayar: order.payments?.[0]?.metode ?? 'tunai',
+			items: (order.order_items ?? []).map((item: any) => ({
+				nama: item.nama_layanan,
+				qty: item.qty,
+				satuan: item.satuan,
+				harga: item.harga_satuan,
+				subtotal: item.subtotal ?? item.harga_satuan * item.qty
+			})),
+			customer_nama: order.customers?.nama ?? '—',
+			customer_hp: order.customers?.nomor_hp ?? ''
+		};
+		showInvoice = true;
+	}
+
+	async function printInvoice() {
+		// Wait for DOM render
+		await new Promise(r => setTimeout(r, 200));
+		invoiceLoading = true;
+		try {
+			await generateInvoicePDF('invoice-print', invoiceOrderData.nomor_order);
+		} catch (e) {
+			console.error('PDF generation failed:', e);
+		} finally {
+			invoiceLoading = false;
+		}
+	}
 
 	function startEdit(deliveryId: string, field: string, currentValue: string) {
 		editingField = { deliveryId, field };
@@ -502,8 +544,11 @@
 										{:else}
 											<p class="text-xs text-gray-400 py-1">Tidak ada data item</p>
 										{/if}
-									</div>
-									<div class="mt-2 space-y-1 pt-2 border-t border-gray-200">
+										</div>
+										{#if order.berat_total > 0}
+										<div class="flex justify-between text-sm px-3 pt-1"><span class="text-gray-500">⚖️ Berat Total</span><span class="text-gray-700">{order.berat_total.toFixed(1)} kg</span></div>
+										{/if}
+										<div class="mt-2 space-y-1 pt-2 border-t border-gray-200">
 										<div class="flex justify-between text-sm px-3"><span class="text-gray-500">Subtotal</span><span class="text-gray-700">{formatRupiah(order.subtotal ?? 0)}</span></div>
 										{#if order.diskon > 0}<div class="flex justify-between text-sm px-3"><span class="text-gray-500">Diskon</span><span class="text-red-500">-{formatRupiah(order.diskon)}</span></div>{/if}
 										<div class="flex justify-between text-sm px-3 font-bold"><span class="text-gray-800">Total</span><span class="text-green-600">{formatRupiah(order.total ?? 0)}</span></div>
@@ -548,6 +593,10 @@
 											</button>
 										</form>
 									{/if}
+									<button type="button" onclick={() => openInvoice(order)}
+										class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition">
+										🖨️ Cetak Invoice
+									</button>
 								</div>
 							</div>
 						{/if}
@@ -576,6 +625,75 @@
 		</div>
 	{/if}
 </div>
+
+<!-- ═══ Invoice Modal ═══ -->
+{#if showInvoice && invoiceOrderData}
+	<div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+		onclick={() => showInvoice = false}
+		onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') showInvoice = false; }}
+		role="dialog" tabindex="-1">
+		<div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 max-h-[90vh] overflow-y-auto"
+			onclick={(e: Event) => e.stopPropagation()}
+			onkeydown={(e: KeyboardEvent) => { if (e.key === 'Escape') showInvoice = false; }}
+			role="document">
+			<div class="p-4 border-b border-gray-200 flex items-center justify-between">
+				<h2 class="text-sm font-bold text-gray-800">📄 Invoice #{invoiceOrderData.nomor_order}</h2>
+				<button onclick={() => showInvoice = false} class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+			</div>
+			<div class="p-4 flex justify-center">
+				<InvoiceTemplate
+					tenant={{ nama: $page.data.tenant?.nama_toko ?? 'LaundryIn', alamat: '', phone: '' }}
+					order={{
+						nomor_order: invoiceOrderData.nomor_order,
+						tanggal: invoiceOrderData.tanggal,
+						subtotal: invoiceOrderData.subtotal,
+						diskon: invoiceOrderData.diskon,
+						total: invoiceOrderData.total,
+						status_bayar: invoiceOrderData.status_bayar,
+						metode_bayar: invoiceOrderData.metode_bayar
+					}}
+					customer={{ nama: invoiceOrderData.customer_nama, phone: invoiceOrderData.customer_hp }}
+					items={invoiceOrderData.items}
+				/>
+			</div>
+			<div class="p-4 border-t border-gray-200 flex gap-2">
+				<button onclick={() => printInvoice()}
+					disabled={invoiceLoading}
+					class="flex-1 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 transition disabled:opacity-50">
+					{#if invoiceLoading}
+						Membuat PDF...
+					{:else}
+						📥 Download PDF
+					{/if}
+				</button>
+				<button onclick={() => showInvoice = false}
+					class="flex-1 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-200 transition">
+					Tutup
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Hidden element for PDF capture -->
+{#if invoiceOrderData}
+	<div id="invoice-print" class="fixed left-[-9999px] top-0 z-[-1]">
+		<InvoiceTemplate
+			tenant={{ nama: $page.data.tenant?.nama_toko ?? 'LaundryIn', alamat: '', phone: '' }}
+			order={{
+				nomor_order: invoiceOrderData.nomor_order,
+				tanggal: invoiceOrderData.tanggal,
+				subtotal: invoiceOrderData.subtotal,
+				diskon: invoiceOrderData.diskon,
+				total: invoiceOrderData.total,
+				status_bayar: invoiceOrderData.status_bayar,
+				metode_bayar: invoiceOrderData.metode_bayar
+			}}
+			customer={{ nama: invoiceOrderData.customer_nama, phone: invoiceOrderData.customer_hp }}
+			items={invoiceOrderData.items}
+		/>
+	</div>
+{/if}
 
 <style>
 	@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }

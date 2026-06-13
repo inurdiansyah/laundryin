@@ -20,12 +20,14 @@ export const load: PageServerLoad = async ({ locals, fetch, cookies }) => {
 		{ data: tenant },
 		{ data: layanan },
 		{ data: users },
-		{ count: userCount }
+		{ count: userCount },
+		{ data: gowaConfig }
 	] = await Promise.all([
 		supabase.from('tenants').select('*').eq('id', tenantId).single(),
 		supabase.from('layanan').select('*').eq('tenant_id', tenantId).order('kategori').order('nama'),
 		supabase.from('tenant_users').select('*').eq('tenant_id', tenantId).order('role').order('nama'),
-		supabase.from('tenant_users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId)
+		supabase.from('tenant_users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+		supabase.from('tenant_configs').select('config_value').eq('tenant_id', tenantId).eq('config_key', 'gowa').maybeSingle()
 	]);
 
 	const paket = (tenant?.paket || 'free') as string;
@@ -37,7 +39,8 @@ export const load: PageServerLoad = async ({ locals, fetch, cookies }) => {
 		users: users ?? [],
 		currentRole: locals.tenant?.role ?? '',
 		userCount: userCount ?? 0,
-		userLimit: limit
+		userLimit: limit,
+		gowaConfig: (gowaConfig?.config_value ?? null) as { base_url?: string; username?: string; password?: string } | null
 	};
 };
 
@@ -229,19 +232,49 @@ export const actions: Actions = {
 		return { success: true, message: 'Layanan diperbarui' };
 	},
 
-	delete_layanan: async ({ request, fetch, cookies, locals }) => {
-		const supabase = getServerSupabase(fetch, cookies);
-		const tenantId = locals.tenant?.tenant_id;
-		if (!tenantId) return fail(403, { error: 'Tenant tidak ditemukan' });
+		delete_layanan: async ({ request, fetch, cookies, locals }) => {
+			const supabase = getServerSupabase(fetch, cookies);
+			const tenantId = locals.tenant?.tenant_id;
+			if (!tenantId) return fail(403, { error: 'Tenant tidak ditemukan' });
 
-		const formData = await request.formData();
-		const id = (formData.get('id') as string)?.trim();
-		if (!id) return fail(400, { error: 'ID layanan tidak ditemukan' });
+			const formData = await request.formData();
+			const id = (formData.get('id') as string)?.trim();
+			if (!id) return fail(400, { error: 'ID layanan tidak ditemukan' });
 
-		const { error } = await supabase.from('layanan')
-			.delete().eq('id', id).eq('tenant_id', tenantId);
+			const { error } = await supabase.from('layanan')
+				.delete().eq('id', id).eq('tenant_id', tenantId);
 
-		if (error) return fail(500, { error: error.message });
-		return { success: true, message: 'Layanan dihapus' };
-	}
-};
+			if (error) return fail(500, { error: error.message });
+			return { success: true, message: 'Layanan dihapus' };
+		},
+
+		// ── Save GoWA configuration ──
+		save_gowa: async ({ request, fetch, cookies, locals }) => {
+			const supabase = getServerSupabase(fetch, cookies);
+			const tenantId = locals.tenant?.tenant_id;
+			if (!tenantId) return fail(403, { error: 'Tenant tidak ditemukan' });
+
+			const formData = await request.formData();
+			const base_url = (formData.get('base_url') as string)?.trim().replace(/\/+$/, '');
+			const username = (formData.get('username') as string)?.trim();
+			const password = (formData.get('password') as string)?.trim();
+
+			if (!base_url) return fail(400, { error: 'GoWA Base URL wajib diisi' });
+			if (!username) return fail(400, { error: 'Username wajib diisi' });
+			if (!password) return fail(400, { error: 'Password wajib diisi' });
+
+			const configValue = { base_url, username, password };
+
+			const { error } = await supabase
+				.from('tenant_configs')
+				.upsert({
+					tenant_id: tenantId,
+					config_key: 'gowa',
+					config_value: configValue,
+					updated_at: new Date().toISOString()
+				}, { onConflict: 'tenant_id,config_key' });
+
+			if (error) return fail(500, { error: error.message });
+			return { success: true, message: 'Konfigurasi WhatsApp disimpan' };
+		}
+	};

@@ -1,6 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getServerSupabase } from '$lib/supabase/server';
+import { formatRupiah } from '$lib/utils/format';
+import { sendNotification } from '$lib/whatsapp/dispatcher';
 
 export const load: PageServerLoad = async ({ locals, fetch, cookies, url }) => {
 	const supabase = getServerSupabase(fetch, cookies);
@@ -221,6 +223,24 @@ export const actions: Actions = {
 					order_id: orderId, status: nextStatus,
 					user_nama: (locals.tenant as any)?.nama_user || 'Admin'
 				});
+
+				// Send WhatsApp notification for milestone statuses (fire-and-forget)
+				const notifiableStatuses = ['siap_diambil', 'dalam_pengiriman', 'terkirim'];
+				if (notifiableStatuses.includes(nextStatus)) {
+					try {
+						const { data: custData } = await supabase.from('customers')
+							.select('nama, nomor_hp').eq('id', order.customer_id).single();
+						if (custData?.nomor_hp) {
+							sendNotification(supabase, tenantId, custData.nomor_hp, nextStatus, {
+								nama: custData.nama || 'Pelanggan',
+								nomor_order: order.nomor_order,
+								total: formatRupiah(0) // total not in this query, but template uses it optionally
+							}).catch(e => console.error('WA notify failed:', e));
+						}
+					} catch (e) {
+						console.error('Failed to fetch customer for WA notification:', e);
+					}
+				}
 
 				return { success: true, message: 'Status diperbarui ke ' + nextStatus.replace(/_/g, ' ') };
 	},

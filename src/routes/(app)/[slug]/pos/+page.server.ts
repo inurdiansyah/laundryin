@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getServerSupabase } from '$lib/supabase/server';
-import { generateNomorOrder } from '$lib/utils/format';
+import { generateNomorOrder, formatRupiah } from '$lib/utils/format';
+import { sendNotification } from '$lib/whatsapp/dispatcher';
 
 export const load: PageServerLoad = async ({ locals, fetch, cookies }) => {
 	const supabase = getServerSupabase(fetch, cookies);
@@ -93,6 +94,12 @@ export const actions: Actions = {
 		}
 
 		const layananMap = new Map(layananList.map(l => [l.id, l]));
+
+		const berat_total = items
+			.map(i => ({ qty: i.qty, satuan: layananMap.get(i.layanan_id)?.satuan }))
+			.filter(i => i.satuan === 'kg')
+			.reduce((sum, i) => sum + i.qty, 0);
+
 		let subtotal = 0;
 		const orderItems = items.map(item => {
 			const layanan = layananMap.get(item.layanan_id);
@@ -188,7 +195,7 @@ export const actions: Actions = {
 				status: orderStatus,
 				jalur,
 				waktu_bayar,
-				berat_total: 0,
+				berat_total,
 				subtotal: Math.round(subtotal),
 				diskon,
 				total,
@@ -269,6 +276,22 @@ export const actions: Actions = {
 				status: 'terjadwal'
 			});
 			if (antarErr) console.error('Gagal buat jadwal antar:', antarErr.message);
+		}
+
+		// 9. Send WhatsApp notification (fire-and-forget)
+		try {
+			const { data: custNotif } = await supabase.from('customers')
+				.select('nama, nomor_hp').eq('id', finalCustomerId).single();
+			if (custNotif?.nomor_hp) {
+				sendNotification(supabase, tenantId, custNotif.nomor_hp, 'order_baru', {
+					nama: custNotif.nama || 'Pelanggan',
+					nomor_order: order.nomor_order,
+					total: formatRupiah(total),
+					status: orderStatus
+				}).catch(e => console.error('WA notify failed:', e));
+			}
+		} catch (e) {
+			console.error('Failed to fetch customer for notification:', e);
 		}
 
 		return { success: true, nomor_order: order.nomor_order, order_id: order.id, total };
