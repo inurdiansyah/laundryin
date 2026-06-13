@@ -2,12 +2,31 @@
  * WhatsApp Notification Dispatcher
  * Fire-and-forget notification sender for order lifecycle events.
  *
- * The entire module is gated by ENABLE_GOWA — when false, sendNotification
- * returns immediately without making any API calls or DB queries.
+ * GoWA credentials are set at ENVIRONMENT level (shared across all tenants).
+ * Gate: ENABLE_GOWA — when false, returns immediately without any API/DB calls.
  */
-import { ENABLE_GOWA } from '$env/static/private';
+import {
+	ENABLE_GOWA,
+	GOWA_BASE_URL,
+	GOWA_USERNAME,
+	GOWA_PASSWORD
+} from '$env/static/private';
 import { GoWAClient } from './gowa-client';
 import type { SupabaseClient } from '@supabase/supabase-js';
+
+// ── Shared GoWA client (lazy, env-level, one per process) ──
+let _client: GoWAClient | null = null;
+function getClient(): GoWAClient | null {
+	if (!ENABLE_GOWA) return null;
+	if (!_client) {
+		_client = new GoWAClient({
+			base_url: GOWA_BASE_URL,
+			username: GOWA_USERNAME,
+			password: GOWA_PASSWORD
+		});
+	}
+	return _client;
+}
 
 // ── Templates ──
 const TEMPLATES: Record<string, (p: Record<string, string>) => string> = {
@@ -39,24 +58,8 @@ export async function sendNotification(
 	const templateFn = TEMPLATES[template];
 	if (!templateFn) return;
 
-	// Load GoWA config from tenant_configs
-	const { data: configRow } = await supabase
-		.from('tenant_configs')
-		.select('config_value')
-		.eq('tenant_id', tenantId)
-		.eq('config_key', 'gowa')
-		.single();
-
-	if (!configRow?.config_value) return;
-
-	const config = configRow.config_value as any;
-	if (!config.base_url || !config.username || !config.password) return;
-
-	const client = new GoWAClient({
-		base_url: config.base_url,
-		username: config.username,
-		password: config.password
-	});
+	const client = getClient();
+	if (!client) return;
 
 	const pesan = templateFn(params);
 	const result = await client.sendMessage({ nomor: nomorTujuan, pesan });
