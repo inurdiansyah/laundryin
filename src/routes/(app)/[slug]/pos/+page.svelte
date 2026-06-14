@@ -480,23 +480,40 @@
 						</div>
 						<div class="flex items-center gap-2 flex-shrink-0 ml-2">
 							{#if item.satuan === 'kg'}
-								<div class="flex items-center gap-1">
-									<button type="button"
-										onclick={() => updateQty(item.id, -0.5)}
-										class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
-										&minus;
-									</button>
-									<input type="number" step="0.1" min="0.5" max="999"
-										value={qtyMap[item.id] || 1}
-										oninput={(e) => updateQty(item.id, 0, parseFloat((e.target as HTMLInputElement).value))}
-										class="w-16 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
-									<button type="button"
-										onclick={() => updateQty(item.id, 0.5)}
-										class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">
-										+
-									</button>
+								<!-- Split input: kg + ons/gram -->
+
+								<button type="button"
+									onclick={() => updateQty(item.id, -0.5)}
+									class="h-8 w-8 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition flex-shrink-0">
+									&minus;
+								</button>
+								{@const totalOns = Math.round((qtyMap[item.id] || 1) * 10)}
+								{@const kgPart = Math.floor(totalOns / 10)}
+								{@const onsPart = totalOns % 10}
+								<div class="flex items-center gap-0.5">
+									<input type="number" step="1" min="0" max="999"
+										value={kgPart}
+										oninput={(e) => {
+											const kg = parseInt((e.target as HTMLInputElement).value) || 0;
+											updateQty(item.id, 0, kg + onsPart / 10);
+										}}
+										class="w-12 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
+									<span class="text-[10px] text-gray-400 flex-shrink-0">kg</span>
+									<input type="number" step="1" min="0" max="9"
+										value={onsPart}
+										oninput={(e) => {
+											const ons = parseInt((e.target as HTMLInputElement).value) || 0;
+											updateQty(item.id, 0, kgPart + ons / 10);
+										}}
+										class="w-12 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
+									<span class="text-[10px] text-gray-400 flex-shrink-0">ons</span>
 								</div>
-							{:else}
+								<button type="button"
+									onclick={() => updateQty(item.id, 0.5)}
+									class="h-8 w-8 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition flex-shrink-0">
+									+
+								</button>
+								{:else}
 								<button type="button"
 									onclick={() => setQty(item.id, item.qty - 1)}
 									class="h-7 w-7 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-500 hover:bg-gray-100 transition">

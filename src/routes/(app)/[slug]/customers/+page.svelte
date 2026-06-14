@@ -327,6 +327,13 @@
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<div class="flex-shrink-0 flex items-center gap-1" onkeydown={(e: KeyboardEvent) => {}} onclick={(e: Event) => e.stopPropagation()}>
 								<button
+									onclick={() => window.open(`/track/${c.id}`, '_blank')}
+									class="rounded-lg p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 transition"
+									title="Tracking Dashboard Pelanggan"
+								>
+									<span class="text-sm">🔍</span>
+								</button>
+								<button
 									onclick={() => openEdit(c)}
 									class="rounded-lg p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
 									title="Edit"

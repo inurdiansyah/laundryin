@@ -169,12 +169,14 @@
 			if (json.type === 'failure' || json.error) {
 				submitError = json.data?.error || json.error || 'Gagal hubungkan';
 				gowaStatus = 'error';
+				gowaStatusText = '❌ ' + (submitError || 'Unknown');
 				return;
 			}
-			if (json.qr) {
-				gowaQr = json.qr;
+			const result = json.data || json;
+			if (result.qr) {
+				gowaQr = result.qr;
 				showQr = true;
-				gowaDeviceId = json.device_id;
+				gowaDeviceId = result.device_id;
 				gowaStatus = 'disconnected';
 				gowaStatusText = 'Scan QR di atas dengan WhatsApp.';
 			} else {

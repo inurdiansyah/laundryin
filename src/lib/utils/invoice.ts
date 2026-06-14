@@ -42,6 +42,7 @@ interface InvoiceData {
 const PAGE_W = 80;
 const MARGIN = 4;
 const CONTENT_W = PAGE_W - MARGIN * 2;
+const TOP_PAD = 4; // ekstra buat header bold fontSize=10
 
 export async function generateInvoicePDF(data: InvoiceData, nomorOrder: string): Promise<void> {
 	const pdf = new jsPDF({
@@ -53,7 +54,7 @@ export async function generateInvoicePDF(data: InvoiceData, nomorOrder: string):
 	const { tenant, order, customer, items } = data;
 
 	pdf.setFont('helvetica', 'normal');
-	let y = MARGIN + 2;
+	let y = MARGIN + TOP_PAD;
 
 	// ── Header ──
 	pdf.setFontSize(10);
