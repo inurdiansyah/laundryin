@@ -78,7 +78,13 @@ export async function sendNotification(
 	const client = await getTenantClient(supabase, tenantId);
 	if (!client) return;
 
-	const pesan = templateFn(params);
+	let pesan = templateFn(params);
+
+	// Append tracking link if customer_id is provided
+	if (params.customer_id) {
+		pesan += `\n\n🔍 Lacak pesanan: https://laundriin.web.id/track/${params.customer_id}`;
+	}
+
 	const result = await client.sendMessage({ nomor: nomorTujuan, pesan });
 
 	// Log to notifications_log

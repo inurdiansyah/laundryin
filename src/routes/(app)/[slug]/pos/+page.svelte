@@ -128,6 +128,7 @@
 		status_bayar: string;
 		customer_nama: string;
 		customer_hp: string;
+		customer_id?: string;
 	} | null>(null);
 
 	let canSubmit = $derived(
@@ -158,7 +159,7 @@
 		if (closeSuccessTimer) clearTimeout(closeSuccessTimer);
 	}
 
-	function captureReceipt() {
+	function captureReceipt(customerId?: string) {
 		if (!successData) return;
 		receiptSnapshot = {
 			nomor_order: successData.nomor_order,
@@ -176,19 +177,37 @@
 			metode_bayar: metodeBayar,
 			status_bayar: waktuBayar === 'awal' && nominalBayar >= total ? 'lunas' : 'belum_lunas',
 			customer_nama: selectedCustomer?.nama ?? newNama,
-			customer_hp: selectedCustomer?.nomor_hp ?? newHp
+			customer_hp: selectedCustomer?.nomor_hp ?? newHp,
+			customer_id: customerId
 		};
 		showInvoice = true;
 	}
 
 	async function printInvoice() {
-		if (!successData) return;
-		captureReceipt();
-		// Wait for DOM render
-		await new Promise(r => setTimeout(r, 200));
+		if (!receiptSnapshot) return;
 		invoiceLoading = true;
 		try {
-			await generateInvoicePDF('invoice-print', successData.nomor_order);
+			await generateInvoicePDF({
+				tenant: {
+					nama: $page.data.tenant?.nama_toko ?? 'LaundryIn',
+					alamat: $page.data.tenant?.alamat ?? '',
+					phone: $page.data.tenant?.nomor_hp ?? ''
+				},
+				order: {
+					nomor_order: receiptSnapshot.nomor_order,
+					tanggal: receiptSnapshot.tanggal,
+					subtotal: receiptSnapshot.subtotal,
+					diskon: receiptSnapshot.diskon,
+					total: receiptSnapshot.total,
+					status_bayar: receiptSnapshot.status_bayar,
+					metode_bayar: receiptSnapshot.metode_bayar
+				},
+				customer: {
+					nama: receiptSnapshot.customer_nama,
+					phone: receiptSnapshot.customer_hp
+				},
+				items: receiptSnapshot.items
+			}, receiptSnapshot.nomor_order);
 		} catch (e) {
 			console.error('PDF generation failed:', e);
 		} finally {

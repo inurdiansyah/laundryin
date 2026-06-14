@@ -160,11 +160,29 @@
 	}
 
 	async function printInvoice() {
-		// Wait for DOM render
-		await new Promise(r => setTimeout(r, 200));
 		invoiceLoading = true;
 		try {
-			await generateInvoicePDF('invoice-print', invoiceOrderData.nomor_order);
+			await generateInvoicePDF({
+				tenant: {
+					nama: $page.data.tenant?.nama_toko ?? 'LaundryIn',
+					alamat: $page.data.tenant?.alamat ?? '',
+					phone: $page.data.tenant?.nomor_hp ?? ''
+				},
+				order: {
+					nomor_order: invoiceOrderData.nomor_order,
+					tanggal: invoiceOrderData.tanggal,
+					subtotal: invoiceOrderData.subtotal,
+					diskon: invoiceOrderData.diskon,
+					total: invoiceOrderData.total,
+					status_bayar: invoiceOrderData.status_bayar,
+					metode_bayar: invoiceOrderData.metode_bayar
+				},
+				customer: {
+					nama: invoiceOrderData.customer_nama,
+					phone: invoiceOrderData.customer_hp
+				},
+				items: invoiceOrderData.items
+			}, invoiceOrderData.nomor_order);
 		} catch (e) {
 			console.error('PDF generation failed:', e);
 		} finally {

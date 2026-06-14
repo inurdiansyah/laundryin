@@ -40,8 +40,9 @@ const authGuard: Handle = async ({ event, resolve }) => {
 	const isPublic = publicPaths.some((p) => pathname === p);
 	const isAuth = pathname.startsWith('/auth/');
 	const isApi = pathname.startsWith('/api/');
+	const isTrack = pathname.startsWith('/track/');
 
-	if (isApi || isPublic) return resolve(event);
+	if (isApi || isPublic || isTrack) return resolve(event);
 
 	const session = await event.locals.getSession();
 	if (!session) {
