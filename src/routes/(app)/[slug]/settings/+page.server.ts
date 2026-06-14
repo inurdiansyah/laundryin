@@ -6,20 +6,38 @@ import { GoWAClient } from '$lib/whatsapp/gowa-client';
 
 const USER_LIMITS: Record<string, number> = { free: 2, starter: 5, pro: 999 };
 
-// ── Shared GoWA client (env-level) ──
-let _gowaClient: GoWAClient | null = null;
-function getGoWAClient(): GoWAClient | null {
+// ── Shared GoWA env client (no device_id — used for create/status before tenant connects) ──
+let _gowaEnv: GoWAClient | null = null;
+function getGoWAEnv(): GoWAClient | null {
 	const config = getGoWAConfig();
 	if (!config.enabled) return null;
-	if (!_gowaClient) {
-		_gowaClient = new GoWAClient({
+	if (!_gowaEnv) {
+		_gowaEnv = new GoWAClient({
 			base_url: config.base_url,
 			username: config.username,
-			password: config.password,
-			device_id: config.device_id
+			password: config.password
 		});
 	}
-	return _gowaClient;
+	return _gowaEnv;
+}
+
+async function getTenantGoWAClient(supabase: any, tenantId: string): Promise<GoWAClient | null> {
+	const config = getGoWAConfig();
+	if (!config.enabled) return null;
+	// Look up tenant's device_id
+	const { data: tc } = await supabase
+		.from('tenant_configs')
+		.select('gowa_device_id')
+		.eq('tenant_id', tenantId)
+		.maybeSingle();
+	const deviceId = tc?.gowa_device_id;
+	if (!deviceId) return null;
+	return new GoWAClient({
+		base_url: config.base_url,
+		username: config.username,
+		password: config.password,
+		device_id: deviceId
+	});
 }
 
 export const load: PageServerLoad = async ({ locals, fetch, cookies }) => {
@@ -46,19 +64,28 @@ export const load: PageServerLoad = async ({ locals, fetch, cookies }) => {
 		supabase.from('tenant_users').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId)
 	]);
 
-	// ── GoWA status (env-level, optionally fetched) ──
+	// ── GoWA status (per-tenant) ──
 	let gowaStatus: { is_connected: boolean; is_logged_in: boolean; jid: string } | null = null;
-	let gowaQr: string | null = null;
+	let gowaDeviceId: string | null = null;
 	if (getGoWAConfig().enabled) {
-		try {
-			const client = getGoWAClient();
-			if (client) {
-				const status = await client.getStatus();
-				if (status.success && status.status) {
-					gowaStatus = status.status;
+		// Get tenant's device_id
+		const { data: tc } = await supabase
+			.from('tenant_configs')
+			.select('gowa_device_id')
+			.eq('tenant_id', tenantId)
+			.maybeSingle();
+		gowaDeviceId = tc?.gowa_device_id || null;
+		if (gowaDeviceId) {
+			try {
+				const client = await getTenantGoWAClient(supabase, tenantId);
+				if (client) {
+					const status = await client.getStatus();
+					if (status.success && status.status) {
+						gowaStatus = status.status;
+					}
 				}
-			}
-		} catch { /* ignore — GoWA might be down */ }
+			} catch { /* ignore — GoWA might be down */ }
+		}
 	}
 
 	const paket = (tenant?.paket || 'free') as string;
@@ -72,7 +99,7 @@ export const load: PageServerLoad = async ({ locals, fetch, cookies }) => {
 		userCount: userCount ?? 0,
 		userLimit: limit,
 		gowaStatus,
-		gowaQr
+		gowaDeviceId
 	};
 };
 
@@ -281,10 +308,13 @@ export const actions: Actions = {
 		},
 
 		// ── GoWA status checker (POST from settings page) ──
-		gowa_status: async () => {
+		gowa_status: async ({ fetch, cookies, locals }) => {
 			if (!getGoWAConfig().enabled) return fail(503, { error: 'GoWA disabled' });
-			const client = getGoWAClient();
-			if (!client) return fail(503, { error: 'GoWA not configured' });
+			const supabase = getServerSupabase(fetch, cookies);
+			const tenantId = locals.tenant?.tenant_id;
+			if (!tenantId) return fail(403, { error: 'Tenant tidak ditemukan' });
+			const client = await getTenantGoWAClient(supabase, tenantId);
+			if (!client) return { connected: false, error: 'Belum terhubung ke WhatsApp. Klik "Hubungkan WA".' };
 			try {
 				const result = await client.getStatus();
 				if (result.success && result.status) {
@@ -296,19 +326,63 @@ export const actions: Actions = {
 			}
 		},
 
-		// ── GoWA QR code (POST from settings page) ──
-		gowa_qr: async () => {
+		// ── Connect WhatsApp (create device + get QR) ──
+		gowa_connect: async ({ fetch, cookies, locals }) => {
 			if (!getGoWAConfig().enabled) return fail(503, { error: 'GoWA disabled' });
-			const client = getGoWAClient();
-			if (!client) return fail(503, { error: 'GoWA not configured' });
-			try {
-				const result = await client.getQR();
-				if (result.success && result.qr) {
-					return { qr: result.qr };
-				}
-				return { error: result.error || 'QR not available' };
-			} catch (err: any) {
-				return { error: err?.message || 'Network error' };
+			const gowa = getGoWAEnv();
+			if (!gowa) return fail(503, { error: 'GoWA not configured' });
+
+			const supabase = getServerSupabase(fetch, cookies);
+			const tenantId = locals.tenant?.tenant_id;
+			const tenantSlug = (locals.tenant as any)?.slug;
+			if (!tenantId) return fail(403, { error: 'Tenant tidak ditemukan' });
+
+			// Generate unique device_id per tenant
+			const deviceId = `laundryin-${tenantSlug}-${Date.now()}`;
+
+			// Create device on GoWA
+			const created = await gowa.createDevice(deviceId);
+			if (!created.success) {
+				return fail(500, { error: `Gagal buat device: ${created.error}` });
 			}
+
+			// Get QR
+			const client = new GoWAClient({
+				base_url: getGoWAConfig().base_url,
+				username: getGoWAConfig().username,
+				password: getGoWAConfig().password,
+				device_id: deviceId
+			});
+			const qrResult = await client.getQR();
+			if (!qrResult.success || !qrResult.qr) {
+				return fail(500, { error: qrResult.error || 'Gagal generate QR' });
+			}
+
+			// Save device_id to tenant_configs
+			await supabase.from('tenant_configs').upsert({
+				tenant_id: tenantId,
+				gowa_device_id: deviceId
+			}, { onConflict: 'tenant_id' });
+
+			return { device_id: deviceId, qr: qrResult.qr };
+		},
+
+		// ── Disconnect WhatsApp ──
+		gowa_disconnect: async ({ fetch, cookies, locals }) => {
+			if (!getGoWAConfig().enabled) return fail(503, { error: 'GoWA disabled' });
+			const supabase = getServerSupabase(fetch, cookies);
+			const tenantId = locals.tenant?.tenant_id;
+			if (!tenantId) return fail(403, { error: 'Tenant tidak ditemukan' });
+
+			const client = await getTenantGoWAClient(supabase, tenantId);
+			if (client) {
+				try { await client.logout(); } catch { /* best effort */ }
+			}
+
+			await supabase.from('tenant_configs')
+				.update({ gowa_device_id: null })
+				.eq('tenant_id', tenantId);
+
+			return { success: true, message: 'WhatsApp diputuskan' };
 		}
 	};

@@ -71,21 +71,54 @@ export class GoWAClient {
 		}
 	}
 
+	/** Create a new device on GoWA */
+	async createDevice(deviceId: string): Promise<{ success: boolean; error?: string }> {
+		try {
+			const res = await fetch(`${this.base_url}/devices`, {
+				method: 'POST',
+				headers: this.headers(true),
+				body: JSON.stringify({ device_id: deviceId })
+			});
+			const json = await res.json();
+			if (!res.ok && json?.code !== 'SUCCESS') {
+				return { success: false, error: json?.message || `HTTP ${res.status}` };
+			}
+			return { success: true };
+		} catch (err: any) {
+			return { success: false, error: err?.message || 'Network error' };
+		}
+	}
+
 	/** Get QR login image (returns base64 data URL) */
 	async getQR(): Promise<{ success: boolean; qr?: string; error?: string }> {
 		try {
+			// Step 1: request login — GoWA returns JSON with qr_link
 			const res = await fetch(`${this.base_url}/app/login`, {
-				headers: { Authorization: this.auth_header }
+				headers: this.headers()  // includes X-Device-Id
 			});
+			const json = await res.json();
 			if (!res.ok) {
-				const text = await res.text();
-				return { success: false, error: text || `HTTP ${res.status}` };
+				return { success: false, error: json?.message || `HTTP ${res.status}` };
 			}
-			const buffer = await res.arrayBuffer();
+			// Already logged in?
+			if (json?.code === 'ALREADY_LOGGED_IN') {
+				return { success: false, error: 'Device sudah login. Tidak perlu scan QR.' };
+			}
+			const qrLink = json?.results?.qr_link;
+			if (!qrLink) {
+				return { success: false, error: 'QR link not found in response' };
+			}
+			// Step 2: download the actual QR image (use https)
+			const qrUrl = qrLink.replace(/^http:\/\//, 'https://');
+			const imgRes = await fetch(qrUrl);
+			if (!imgRes.ok) {
+				return { success: false, error: `Failed to fetch QR image: ${imgRes.status}` };
+			}
+			const buffer = await imgRes.arrayBuffer();
 			const base64 = btoa(
 				Array.from(new Uint8Array(buffer)).map((b) => String.fromCharCode(b)).join('')
 			);
-			const contentType = res.headers.get('content-type') || 'image/png';
+			const contentType = imgRes.headers.get('content-type') || 'image/png';
 			return { success: true, qr: `data:${contentType};base64,${base64}` };
 		} catch (err: any) {
 			return { success: false, error: err?.message || 'Network error' };

@@ -2,26 +2,47 @@
  * WhatsApp Notification Dispatcher
  * Fire-and-forget notification sender for order lifecycle events.
  *
- * GoWA credentials are set at ENVIRONMENT level (shared across all tenants).
+ * GoWA credentials (base URL, auth) are set at ENVIRONMENT level.
+ * Each tenant gets their own device_id → own WhatsApp number.
+ *
  * Gate: ENABLE_GOWA — when false, returns immediately without any API/DB calls.
  */
-import { getGoWAConfig, type GoWAConfig } from './gowa-config';
+import { getGoWAConfig } from './gowa-config';
 import { GoWAClient } from './gowa-client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-// ── Shared GoWA client (lazy, env-level, one per process) ──
-let _client: GoWAClient | null = null;
-function getClient(): GoWAClient | null {
+// ── Per-tenant client cache ──
+const _clients = new Map<string, GoWAClient>();
+
+async function getTenantClient(
+	supabase: SupabaseClient,
+	tenantId: string
+): Promise<GoWAClient | null> {
 	const config = getGoWAConfig();
 	if (!config.enabled) return null;
-	if (!_client) {
-		_client = new GoWAClient({
-			base_url: config.base_url,
-			username: config.username,
-			password: config.password
-		});
-	}
-	return _client;
+
+	// Check cache
+	if (_clients.has(tenantId)) return _clients.get(tenantId)!;
+
+	// Look up tenant's GoWA device_id
+	const { data: tc } = await supabase
+		.from('tenant_configs')
+		.select('gowa_device_id')
+		.eq('tenant_id', tenantId)
+		.maybeSingle();
+
+	const deviceId = tc?.gowa_device_id;
+	if (!deviceId) return null; // tenant hasn't connected WA yet
+
+	const client = new GoWAClient({
+		base_url: config.base_url,
+		username: config.username,
+		password: config.password,
+		device_id: deviceId
+	});
+
+	_clients.set(tenantId, client);
+	return client;
 }
 
 // ── Templates ──
@@ -54,7 +75,7 @@ export async function sendNotification(
 	const templateFn = TEMPLATES[template];
 	if (!templateFn) return;
 
-	const client = getClient();
+	const client = await getTenantClient(supabase, tenantId);
 	if (!client) return;
 
 	const pesan = templateFn(params);
