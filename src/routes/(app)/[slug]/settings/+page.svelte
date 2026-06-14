@@ -122,19 +122,23 @@
 		}
 	}
 
-	// ── WhatsApp state (env-level, no per-tenant config) ──
-	let gowaStatus = $state<'idle' | 'loading' | 'connected' | 'disconnected' | 'error'>(
-		data.gowaStatus?.is_connected ? 'connected' : data.gowaStatus ? 'disconnected' : 'idle'
-	);
-	let gowaStatusText = $state(
-		data.gowaStatus?.is_connected
-			? `✅ Terhubung — JID: ${data.gowaStatus.jid}`
-			: data.gowaStatus
-				? '⚠️ GoWA tidak terhubung ke WhatsApp.'
-				: ''
-	);
-	let gowaQr = $state(data.gowaQr || '');
+	// ── WhatsApp state (per-tenant) ──
+	let gowaStatus = $state<'idle' | 'loading' | 'connected' | 'disconnected' | 'error'>('idle');
+	let gowaStatusText = $state('');
+	let gowaQr = $state('');
 	let showQr = $state(false);
+	let gowaDeviceId = $state(data.gowaDeviceId);
+
+	// Init on load
+	$effect(() => {
+		if (data.gowaStatus?.is_connected) {
+			gowaStatus = 'connected';
+			gowaStatusText = `✅ Terhubung — JID: ${data.gowaStatus.jid}`;
+		} else if (gowaDeviceId) {
+			gowaStatus = 'disconnected';
+			gowaStatusText = '⚠️ GoWA tidak terhubung. Klik "Hubungkan WA" untuk scan QR.';
+		}
+	});
 
 	async function testGoWA() {
 		gowaStatus = 'loading';
@@ -147,7 +151,7 @@
 				gowaStatusText = `✅ Terhubung — JID: ${json.jid || 'unknown'}`;
 			} else {
 				gowaStatus = 'disconnected';
-				gowaStatusText = '⚠️ GoWA tidak terhubung ke WhatsApp. Scan QR untuk login.';
+				gowaStatusText = json.error || '⚠️ Belum terhubung. Klik "Hubungkan WA".';
 			}
 		} catch (err: any) {
 			gowaStatus = 'error';
@@ -155,23 +159,55 @@
 		}
 	}
 
-	async function getGoWAQR() {
+	async function connectWA() {
 		gowaStatus = 'loading';
+		gowaStatusText = 'Membuat device GoWA...';
+		submitError = '';
 		try {
-			const res = await fetch('?/gowa_qr', { method: 'POST' });
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data = await res.json();
-			if (data.qr) {
-				gowaQr = data.qr;
-				showQr = true;
-				gowaStatus = 'idle';
-			} else {
+			const res = await fetch('?/gowa_connect', { method: 'POST' });
+			const json = await res.json();
+			if (json.type === 'failure' || json.error) {
+				submitError = json.data?.error || json.error || 'Gagal hubungkan';
 				gowaStatus = 'error';
-				gowaStatusText = '❌ QR tidak tersedia: ' + (data.error || 'Unknown');
+				return;
+			}
+			if (json.qr) {
+				gowaQr = json.qr;
+				showQr = true;
+				gowaDeviceId = json.device_id;
+				gowaStatus = 'disconnected';
+				gowaStatusText = 'Scan QR di atas dengan WhatsApp.';
+			} else {
+				submitError = 'QR tidak tersedia dari GoWA';
+				gowaStatus = 'error';
 			}
 		} catch (err: any) {
+			submitError = 'Gagal: ' + (err?.message || 'Unknown');
 			gowaStatus = 'error';
-			gowaStatusText = '❌ Gagal ambil QR: ' + (err?.message || 'Unknown');
+		}
+	}
+
+	async function disconnectWA() {
+		if (!confirm('Putuskan WhatsApp? Notifikasi WA akan berhenti.')) return;
+		gowaStatus = 'loading';
+		gowaStatusText = 'Memutuskan...';
+		try {
+			const res = await fetch('?/gowa_disconnect', { method: 'POST' });
+			const json = await res.json();
+			if (json.type === 'success' || json.success) {
+				gowaDeviceId = null;
+				gowaStatus = 'idle';
+				gowaStatusText = '';
+				gowaQr = '';
+				showQr = false;
+				showSuccess('WhatsApp diputuskan');
+			} else {
+				submitError = json.data?.error || json.error || 'Gagal';
+				gowaStatus = 'error';
+			}
+		} catch (err: any) {
+			submitError = 'Gagal: ' + (err?.message || 'Unknown');
+			gowaStatus = 'error';
 		}
 	}
 </script>
@@ -331,7 +367,7 @@
 		<!-- ═══ WHATSAPP ═══ -->
 		{#if activeTab === 'whatsapp'}
 			<div class="rounded-xl border border-gray-200 bg-white p-5">
-				<h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Integrasi WhatsApp (GoWA)</h2>
+				<h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">WhatsApp (GoWA)</h2>
 
 				<!-- Status -->
 				{#if gowaStatus !== 'idle'}
@@ -343,18 +379,33 @@
 				<!-- QR Code -->
 				{#if showQr && gowaQr}
 					<div class="mb-4 p-4 bg-gray-50 rounded-xl text-center">
-						<p class="text-sm font-medium text-gray-600 mb-3">Scan QR code dengan WhatsApp:</p>
+						<p class="text-sm font-medium text-gray-700 mb-2">Scan QR dengan WhatsApp:</p>
+						<p class="text-xs text-gray-400 mb-3">Buka WhatsApp → Perangkat Tertaut → Tautkan Perangkat</p>
 						<img src={gowaQr} alt="GoWA QR Code" class="mx-auto max-w-[240px] rounded-lg border border-gray-200" />
 						<button onclick={() => { showQr = false; gowaQr = ''; }} class="mt-3 text-xs text-red-500 hover:text-red-700">Tutup QR</button>
 					</div>
 				{/if}
 
-				<div class="flex gap-3">
-					<button onclick={testGoWA} disabled={gowaStatus === 'loading'} class="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-md shadow-blue-200 hover:bg-blue-700 transition disabled:opacity-50">🔌 Cek Status GoWA</button>
-					<button onclick={getGoWAQR} disabled={gowaStatus === 'loading'} class="flex-1 rounded-xl bg-amber-600 py-3 text-sm font-semibold text-white shadow-md shadow-amber-200 hover:bg-amber-700 transition disabled:opacity-50">📱 Dapatkan QR</button>
+				<!-- Actions -->
+				<div class="flex gap-3 flex-wrap">
+					{#if !gowaDeviceId}
+						<button onclick={connectWA} disabled={gowaStatus === 'loading'} class="flex-1 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white shadow-md shadow-green-200 hover:bg-green-700 transition disabled:opacity-50 min-w-[140px]">
+							🔗 Hubungkan WA
+						</button>
+					{:else}
+						<button onclick={testGoWA} disabled={gowaStatus === 'loading'} class="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-md shadow-blue-200 hover:bg-blue-700 transition disabled:opacity-50 min-w-[140px]">
+							🔌 Cek Status
+						</button>
+						<button onclick={disconnectWA} disabled={gowaStatus === 'loading'} class="flex-1 rounded-xl bg-red-50 border border-red-200 py-3 text-sm font-semibold text-red-600 hover:bg-red-100 transition disabled:opacity-50 min-w-[140px]">
+							🔌 Putuskan
+						</button>
+					{/if}
 				</div>
 
-				<p class="text-xs text-gray-400 mt-4">GoWA dikelola di level environment. Untuk mengubah kredensial, hubungi admin sistem.</p>
+				<p class="text-xs text-gray-400 mt-4">
+					Setiap tenant punya nomor WhatsApp sendiri.
+					{#if gowaDeviceId}Device ID: <code class="text-xs bg-gray-100 px-1 rounded">{gowaDeviceId}</code>{/if}
+				</p>
 			</div>
 		{/if}
 	</div>
