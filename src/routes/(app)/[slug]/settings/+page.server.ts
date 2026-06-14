@@ -343,7 +343,8 @@ export const actions: Actions = {
 			// Create device on GoWA
 			const created = await gowa.createDevice(deviceId);
 			if (!created.success) {
-				return fail(500, { error: `Gagal buat device: ${created.error}` });
+				const errStr = typeof created.error === 'string' ? created.error : JSON.stringify(created.error);
+				return fail(500, { error: `Gagal buat device: ${errStr}` });
 			}
 
 			// Get QR

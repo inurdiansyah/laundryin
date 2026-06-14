@@ -42,7 +42,7 @@ interface InvoiceData {
 const PAGE_W = 80;
 const MARGIN = 4;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const TOP_PAD = 4; // ekstra buat header bold fontSize=10
+const TOP_PAD = 8; // 8mm pad atas — header bold fontSize=10 nggak kepotong
 
 export async function generateInvoicePDF(data: InvoiceData, nomorOrder: string): Promise<void> {
 	const pdf = new jsPDF({

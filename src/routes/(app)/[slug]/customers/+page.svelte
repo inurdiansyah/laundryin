@@ -319,7 +319,7 @@
 									{c.order_count} transaksi
 								</p>
 								<p class="text-sm font-semibold text-gray-700">
-									{formatRupiah(c.total_belanja ?? 0)}
+									formatRupiah(c.total_belanja_aktual ?? 0)
 								</p>
 							</div>
 

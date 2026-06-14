@@ -81,7 +81,10 @@ export class GoWAClient {
 			});
 			const json = await res.json();
 			if (!res.ok && json?.code !== 'SUCCESS') {
-				return { success: false, error: json?.message || `HTTP ${res.status}` };
+				const errMsg = typeof json?.message === 'string'
+					? json.message
+					: (json?.message ? JSON.stringify(json.message) : null);
+				return { success: false, error: errMsg || `HTTP ${res.status}` };
 			}
 			return { success: true };
 		} catch (err: any) {
@@ -98,7 +101,10 @@ export class GoWAClient {
 			});
 			const json = await res.json();
 			if (!res.ok) {
-				return { success: false, error: json?.message || `HTTP ${res.status}` };
+				const errMsg = typeof json?.message === 'string'
+					? json.message
+					: (json?.message ? JSON.stringify(json.message) : null);
+				return { success: false, error: errMsg || `HTTP ${res.status}` };
 			}
 			// Already logged in?
 			if (json?.code === 'ALREADY_LOGGED_IN') {

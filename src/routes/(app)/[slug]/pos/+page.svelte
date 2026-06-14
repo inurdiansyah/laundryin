@@ -490,23 +490,23 @@
 								{@const totalOns = Math.round((qtyMap[item.id] || 1) * 10)}
 								{@const kgPart = Math.floor(totalOns / 10)}
 								{@const onsPart = totalOns % 10}
-								<div class="flex items-center gap-0.5">
+								<div class="flex items-center flex-wrap gap-1">
 									<input type="number" step="1" min="0" max="999"
 										value={kgPart}
 										oninput={(e) => {
 											const kg = parseInt((e.target as HTMLInputElement).value) || 0;
 											updateQty(item.id, 0, kg + onsPart / 10);
 										}}
-										class="w-12 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
-									<span class="text-[10px] text-gray-400 flex-shrink-0">kg</span>
+										class="w-10 text-center text-xs border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
+									<span class="text-[9px] text-gray-400 flex-shrink-0">kg</span>
 									<input type="number" step="1" min="0" max="9"
 										value={onsPart}
 										oninput={(e) => {
 											const ons = parseInt((e.target as HTMLInputElement).value) || 0;
 											updateQty(item.id, 0, kgPart + ons / 10);
 										}}
-										class="w-12 text-center text-sm border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
-									<span class="text-[10px] text-gray-400 flex-shrink-0">ons</span>
+										class="w-10 text-center text-xs border border-gray-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400" />
+									<span class="text-[9px] text-gray-400 flex-shrink-0">ons</span>
 								</div>
 								<button type="button"
 									onclick={() => updateQty(item.id, 0.5)}

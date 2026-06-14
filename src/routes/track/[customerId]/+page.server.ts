@@ -1,10 +1,7 @@
 import type { PageServerLoad } from './$types';
-import { createClient } from '@supabase/supabase-js';
+import { getServiceSupabase } from '$lib/supabase/server';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = getServiceSupabase();
 
 interface OrderItem {
 	id: string;
@@ -21,10 +18,10 @@ interface OrderItem {
 export const load: PageServerLoad = async ({ params }) => {
 	const { customerId } = params;
 
-	// Get customer info
+	// Get customer info (service role — bypasses RLS for public route)
 	const { data: customer } = await supabase
 		.from('customers')
-		.select('id, nama, nomor_hp, tenant_id, tenants:tenant_id(nama_toko)')
+		.select('id, nama, nomor_hp, tenant_id')
 		.eq('id', customerId)
 		.single();
 

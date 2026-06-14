@@ -46,12 +46,19 @@ export const load: PageServerLoad = async ({ locals, fetch, cookies, url }) => {
 		ordersByCustomer[order.customer_id].orders.push(order);
 	}
 
-	// Merge customers with order counts
-	const customersWithOrders = customers.map((c) => ({
-		...c,
-		order_count: ordersByCustomer[c.id]?.count ?? 0,
-		orders: ordersByCustomer[c.id]?.orders ?? []
-	}));
+	// Merge customers with order counts + total belanja aktual (only lunas)
+	const customersWithOrders = customers.map((c) => {
+		const customerOrders = ordersByCustomer[c.id]?.orders ?? [];
+		const totalBelanja = customerOrders
+			.filter(o => o.status_bayar === 'lunas')
+			.reduce((sum, o) => sum + (o.total || 0), 0);
+		return {
+			...c,
+			order_count: ordersByCustomer[c.id]?.count ?? 0,
+			total_belanja_aktual: totalBelanja,
+			orders: customerOrders
+		};
+	});
 
 	return {
 		customers: customersWithOrders,
