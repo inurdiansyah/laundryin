@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, fetch, cookies, url }) => {
 	// Query all orders for this tenant (for order counts and expand detail)
 	const ordersQuery = supabase
 		.from('orders')
-		.select('customer_id, id, nomor_order, total, status, created_at')
+		.select('customer_id, id, nomor_order, total, status, status_bayar, created_at')
 		.eq('tenant_id', tenantId)
 		.order('created_at', { ascending: false });
 
