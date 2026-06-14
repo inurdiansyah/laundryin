@@ -146,12 +146,14 @@
 		try {
 			const res = await fetch('?/gowa_status', { method: 'POST' });
 			const json = await res.json();
-			if (json.connected) {
+			// SvelteKit wraps action responses in { type, data }
+			const result = json.data || json;
+			if (result.connected) {
 				gowaStatus = 'connected';
-				gowaStatusText = `✅ Terhubung — JID: ${json.jid || 'unknown'}`;
+				gowaStatusText = `✅ Terhubung — JID: ${result.jid || 'unknown'}`;
 			} else {
 				gowaStatus = 'disconnected';
-				gowaStatusText = json.error || '⚠️ Belum terhubung. Klik "Hubungkan WA".';
+				gowaStatusText = result.error || '⚠️ Belum terhubung. Klik "Hubungkan WA".';
 			}
 		} catch (err: any) {
 			gowaStatus = 'error';
