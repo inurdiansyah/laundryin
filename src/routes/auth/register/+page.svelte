@@ -45,7 +45,7 @@
 			</div>
 		{/if}
 
-		<div class="rounded-2xl border border-gray-200 bg-white p-8 shadow-lg">
+		<div class="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-lg">
 			<!-- Native form — SvelteKit handles redirect natively -->
 			<form method="POST" class="space-y-4">
 				<div>
@@ -129,14 +129,14 @@
 				</div>
 
 				<button type="submit"
-					class="w-full rounded-xl bg-green-600 py-3 text-sm font-semibold text-white shadow-lg shadow-green-200 hover:bg-green-700 transition">
+					class="w-full rounded-xl bg-green-600 py-3.5 text-base font-semibold text-white shadow-lg shadow-green-200 hover:bg-green-700 active:bg-green-800 transition touch-manipulation">
 					Daftar Gratis
 				</button>
 			</form>
 
-			<div class="mt-6 text-center text-sm text-gray-500">
+			<div class="mt-6 text-center text-base text-gray-500">
 				Sudah punya akun?
-				<a href="/auth/login" class="font-medium text-green-600 hover:text-green-700">Masuk</a>
+				<a href="/auth/login" class="font-semibold text-green-600 hover:text-green-700 active:text-green-800 touch-manipulation">Masuk</a>
 			</div>
 		</div>
 	</div>
