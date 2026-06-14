@@ -44,11 +44,11 @@ export class GoWAClient {
 		this.device_id = config.device_id;
 	}
 
-	private headers(): Record<string, string> {
+	private headers(includeContentType = false): Record<string, string> {
 		const h: Record<string, string> = {
-			Authorization: this.auth_header,
-			'Content-Type': 'application/json'
+			Authorization: this.auth_header
 		};
+		if (includeContentType) h['Content-Type'] = 'application/json';
 		if (this.device_id) h['X-Device-Id'] = this.device_id;
 		return h;
 	}
@@ -58,7 +58,7 @@ export class GoWAClient {
 		try {
 			const res = await fetch(`${this.base_url}/send/message`, {
 				method: 'POST',
-				headers: this.headers(),
+				headers: this.headers(true),
 				body: JSON.stringify({ phone: params.nomor, message: params.pesan })
 			});
 			const json = await res.json().catch(() => null);

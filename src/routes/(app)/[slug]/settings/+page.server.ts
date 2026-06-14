@@ -15,7 +15,8 @@ function getGoWAClient(): GoWAClient | null {
 		_gowaClient = new GoWAClient({
 			base_url: config.base_url,
 			username: config.username,
-			password: config.password
+			password: config.password,
+			device_id: config.device_id
 		});
 	}
 	return _gowaClient;

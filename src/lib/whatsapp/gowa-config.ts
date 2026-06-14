@@ -13,6 +13,7 @@ export interface GoWAConfig {
 	base_url: string;
 	username: string;
 	password: string;
+	device_id?: string;
 }
 
 const EMPTY: GoWAConfig = {
@@ -31,9 +32,10 @@ export function getGoWAConfig(): GoWAConfig {
 	const base_url = (privateEnv.GOWA_BASE_URL || '').trim().replace(/\/+$/, '');
 	const username = (privateEnv.GOWA_USERNAME || '').trim();
 	const password = (privateEnv.GOWA_PASSWORD || '').trim();
+	const device_id = (privateEnv.GOWA_DEVICE_ID || '').trim() || undefined;
 
 	_cached = enabled && base_url && username && password
-		? { enabled: true, base_url, username, password }
+		? { enabled: true, base_url, username, password, device_id }
 		: EMPTY;
 
 	return _cached;
