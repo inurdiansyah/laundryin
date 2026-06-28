@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			status_bayar,
 			created_at,
 			status,
-			tenant:tenant_id(nama_toko)
+			tenant:tenant_id(nama)
 		`)
 		.eq('customer_id', customerId)
 		.order('created_at', { ascending: false });
@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			status_bayar: o.status_bayar,
 			tanggal: o.created_at,
 			status: o.status,
-			tenant_nama: (o.tenant as any)?.nama_toko ?? 'LaundryIn'
+			tenant_nama: (o.tenant as any)?.nama ?? 'LaundryIn'
 		}))
 	};
 };
